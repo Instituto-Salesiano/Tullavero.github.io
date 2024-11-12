@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laberinto de la Llave</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0; /* Gris clarito */
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+        #gameBoard {
+            display: grid;
+            grid-template-columns: repeat(20, 30px);
+            grid-template-rows: repeat(20, 30px);
+            gap: 2px;
+            background-color: #333;
+            border: 4px solid #333;
+            margin-top: 20px;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+        }
+        .wall {
+            background-color: #37474F;
+        }
+        .path {
+            background-color: #ECEFF1;
+        }
+        .start {
+            background-color: #4CAF50;
+        }
+        .end {
+            background-image: url('https://img.icons8.com/emoji/48/000000/door-emoji.png');
+            background-size: cover;
+        }
+        .player {
+            background-image: url('https://img.icons8.com/emoji/48/000000/key-emoji.png');
+            background-size: cover;
+        }
+        #controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        #time, #score, #bestScore {
+            font-size: 18px;
+            color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #ffffff90;
+        }
+        #resetButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+        }
+        #resetButton:hover {
+            background-color: #388E3C;
+        }
+        #backButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        #backButton:hover {
+            background-color: #1976D2;
+        }
+        /* Modal */
+        #modalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        #modalOverlay.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        #modal {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
+            width: 300px;
+        }
+        #modal h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        #modal p {
+            font-size: 18px;
+            color: #555;
+            margin: 10px 0;
+        }
+        #closeModal {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+        }
+        #closeModal:hover {
+            background-color: #388E3C;
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="controls">
+        <span id="time">Tiempo: 0s</span>
+        <span id="score">Puntuación: 0</span>
+        <span id="bestScore">Mejor Puntuación: 0</span>
+        <button id="resetButton">Reiniciar Laberinto</button>
+    </div>
+    <div id="gameBoard"></div>
+    <button id="backButton" onclick="window.location.href='sidebar.html'">Regresar a Sidebar</button>
+
+    <div id="modalOverlay">
+        <div id="modal">
+            <h2>¡Felicitaciones lograste abrir la puerta!</h2>
+            <p id="scoreMessage"></p>
+            <p id="bestScoreMessage"></p>
+            <button id="closeModal">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        const gameBoard = document.getElementById('gameBoard');
+        const timeDisplay = document.getElementById('time');
+        const scoreDisplay = document.getElementById('score');
+        const bestScoreDisplay = document.getElementById('bestScore');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const scoreMessage = document.getElementById('scoreMessage');
+        const bestScoreMessage = document.getElementById('bestScoreMessage');
+        const closeModal = document.getElementById('closeModal');
+
+        let playerPosition = { x: 0, y: 0 };
+        let endPosition = { x: 0, y: 0 };
+        const size = 20;
+        let maze;
+        let timeElapsed = 0;
+        let score = 0;
+        let bestScore = localStorage.getItem('bestScore') || 0;
+        let timer;
+        let timerStarted = false; // Asegurarse de que el temporizador no inicie hasta que se mueva
+
+        bestScoreDisplay.textContent = `Mejor Puntuación: ${bestScore}`;
+
+        function generateMaze(size) {
+            maze = Array(size).fill(null).map(() => Array(size).fill(1));
+
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            function carvePath(x, y) {
+                maze[y][x] = 0;
+                const directions = shuffle([[0, -2], [2, 0], [0, 2], [-2, 0]]);
+
+                for (const [dx, dy] of directions) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx >= 0 && ny >= 0 && nx < size && ny < size && maze[ny][nx] === 1) {
+                        maze[ny - dy / 2][nx - dx / 2] = 0;
+                        carvePath(nx, ny);
+                    }
+                }
+            }
+
+            carvePath(1, 1);
+            maze[1][1] = 0;
+            maze[size - 2][size - 2] = 0;
+            playerPosition = { x: 1, y: 1 };
+            endPosition = { x: size - 2, y: size - 2 };
+        }
+
+        function createMaze() {
+            gameBoard.innerHTML = '';
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (maze[y][x] === 1) {
+                        cell.classList.add('wall');
+                    } else {
+                        cell.classList.add('path');
+                    }
+                    if (x === playerPosition.x && y === playerPosition.y) {
+                        cell.classList.add('player');
+                    }
+                    if (x === endPosition.x && y === endPosition.y) {
+                        cell.classList.add('end');
+                    }
+                    gameBoard.appendChild(cell);
+                }
+            }
+        }
+
+        function movePlayer(dx, dy) {
+            const newX = playerPosition.x + dx;
+            const newY = playerPosition.y + dy;
+
+            if (newX >= 0 && newX < size && newY >= 0 && newY < size && maze[newY][newX] === 0) {
+                playerPosition.x = newX;
+                playerPosition.y = newY;
+                createMaze();
+                checkWin();
+
+                if (!timerStarted) {
+                    startTimer();
+                }
+            }
+        }
+
+        function startTimer() {
+            timerStarted = true;
+            timer = setInterval(() => {
+                timeElapsed++;
+                timeDisplay.textContent = `Tiempo: ${timeElapsed}s`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+            score = Math.max(1000 - timeElapsed * 10, 0);
+            scoreDisplay.textContent = `Puntuación: ${score}`;
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('bestScore', bestScore);
+            }
+            bestScoreDisplay.textContent = `Mejor Puntuación: ${bestScore}`;
+        }
+
+        function checkWin() {
+            if (playerPosition.x === endPosition.x && playerPosition.y === endPosition.y) {
+                stopTimer();
+                scoreMessage.textContent = `Tu puntuación: ${score}`;
+                bestScoreMessage.textContent = `Mejor puntuación: ${bestScore}`;
+                modalOverlay.classList.add('show');
+                document.removeEventListener('keydown', handleKeyPress);
+            }
+        }
+
+        function handleKeyPress(event) {
+            switch (event.key) {
+                case 'ArrowUp':
+                    movePlayer(0, -1);
+                    break;
+                case 'ArrowDown':
+                    movePlayer(0, 1);
+                    break;
+                case 'ArrowLeft':
+                    movePlayer(-1, 0);
+                    break;
+                case 'ArrowRight':
+                    movePlayer(1, 0);
+                    break;
+            }
+        }
+
+        function resetGame() {
+            generateMaze(size);
+            createMaze();
+            timerStarted = false; // Asegurarse de que el temporizador no se active de inmediato
+            timeElapsed = 0;
+            score = 0;
+            scoreDisplay.textContent = `Puntuación: ${score}`;
+            timeDisplay.textContent = `Tiempo: 0s`;
+            modalOverlay.classList.remove('show');
+            document.addEventListener('keydown', handleKeyPress);
+        }
+
+        closeModal.addEventListener('click', () => {
+            resetGame();
+        });
+
+        document.getElementById('resetButton').addEventListener('click', () => {
+            resetGame();
+        });
+
+        // Inicializar el juego
+        resetGame();
+
+    </script>
+</body>
+</html>

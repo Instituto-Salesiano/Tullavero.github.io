@@ -1,0 +1,92 @@
+<!DOCTYPE html> 
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link rel="shortcut icon" href="img/llavero.png" />
+    <title>Crear Llave</title>
+</head>
+<body>
+    <div class="container mt-5">
+        <a href="sidebar.html" class="btn btn-secondary mb-3"><i class="fas fa-home"></i> Regresar</a>
+        <h1 class="text-center">Crear Llave</h1>
+        <form id="keyForm">
+            <div class="mb-3">
+                <label for="color" class="form-label">Color del Llavero</label>
+                <select class="form-select" id="color" required>
+                    <option value="">Seleccione un color</option>
+                    <option value="#FF0000">Rojo</option>
+                    <option value="#00FF00">Verde</option>
+                    <option value="#0000FF">Azul</option>
+                    <option value="#FFFF00">Amarillo</option>
+                    <option value="#FFA500">Naranja</option>
+                    <option value="#800080">Púrpura</option>
+                    <option value="#FFFFFF">Blanco</option>
+                    <option value="#000000">Negro</option>
+                    <option value="#FFC0CB">Rosa</option>
+                    <option value="#A52A2A">Marrón</option>
+                    <option value="#808080">Gris</option>
+                    <option value="#FFD700">Dorado</option>
+                    <option value="#00FFFF">Cian</option>
+                    <option value="#FF4500">Naranja Rojo</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="puerta" class="form-label">Puerta que Abre (Número)</label>
+                <input type="number" class="form-control" id="puerta" required>
+            </div>
+            <div class="mb-3">
+                <label for="descripcion" class="form-label">Descripción</label>
+                <textarea class="form-control" id="descripcion" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" id="submitBtn">Crear Llave</button>
+            <a href="keys.html" class="btn btn-secondary">Ver Llaves</a>
+        </form>
+    </div>
+
+    <script>
+        const keyForm = document.getElementById('keyForm');
+        let keys = JSON.parse(localStorage.getItem('keys')) || [];
+        let editIndex = -1;
+
+        if (localStorage.getItem('editIndex') !== null) {
+            editIndex = parseInt(localStorage.getItem('editIndex'));
+            const key = keys[editIndex];
+            if (key) {
+                document.getElementById('color').value = key.color;
+                document.getElementById('puerta').value = key.puerta;
+                document.getElementById('descripcion').value = key.descripcion;
+                document.getElementById('submitBtn').textContent = 'Actualizar Llave';
+            }
+        }
+
+        keyForm.addEventListener('submit', handleSubmit);
+
+        function handleSubmit(e) {
+            e.preventDefault();
+
+            const color = document.getElementById('color').value;
+            const puerta = document.getElementById('puerta').value;
+            const descripcion = document.getElementById('descripcion').value;
+            const estado = 'cerrada';
+
+            if (editIndex === -1) {
+                const newKey = { color, puerta, descripcion, estado, reportes: [] };
+                keys.push(newKey);
+                alert('Llave creada con éxito');
+            } else {
+                keys[editIndex] = { color, puerta, descripcion, estado: keys[editIndex].estado, reportes: keys[editIndex].reportes };
+                alert('Llave actualizada con éxito');
+                editIndex = -1;
+                localStorage.removeItem('editIndex');
+                document.getElementById('submitBtn').textContent = 'Crear Llave';
+            }
+
+            localStorage.setItem('keys', JSON.stringify(keys));
+            keyForm.reset();
+        }
+    </script>
+</body>
+</html>
